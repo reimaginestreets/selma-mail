@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Selma — a slow mail journal</title>
+  <meta name="description" content="Track the postcards and letters you send, and keep your addresses close.">
+  <meta name="theme-color" content="#F6F3EE">
+  <link rel="icon" href="selma.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand">
+      <img src="selma.svg" alt="Selma the Snail" width="52" height="52">
+      <div>
+        <h1>Selma</h1>
+        <p>a slow mail journal</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <button class="tab" data-view="mailings" aria-current="page">Mailings</button>
+      <button class="tab" data-view="addresses">Addresses</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Mailings -->
+    <section id="view-mailings">
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <input type="search" id="mailing-search" placeholder="Search by person, place or note" aria-label="Search mailings">
+        <select id="mailing-type" aria-label="Filter by kind">
+          <option value="">All kinds</option>
+          <option value="postcard">Postcards</option>
+          <option value="letter">Letters</option>
+          <option value="other">Other</option>
+        </select>
+        <button class="btn primary" data-action="new-mailing">Log a mailing</button>
+      </div>
+      <div id="mailing-list"></div>
+    </section>
+
+    <!-- Addresses -->
+    <section id="view-addresses" hidden>
+      <div class="toolbar">
+        <input type="search" id="contact-search" placeholder="Search by name, city or country" aria-label="Search addresses">
+        <button class="btn primary" data-action="new-contact">Add an address</button>
+      </div>
+      <div id="contact-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Everything you enter stays in this browser on this device. Keep a backup now and then.</p>
+    <div class="footer-actions">
+      <button class="btn quiet" data-action="export">Save a backup</button>
+      <button class="btn quiet" data-action="import">Restore from backup</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+    </div>
+  </footer>
+
+  <!-- Mailing form -->
+  <dialog id="mailing-dialog">
+    <form id="mailing-form">
+      <h2 id="mailing-dialog-title">Log a mailing</h2>
+
+      <fieldset class="segmented">
+        <legend>What kind?</legend>
+        <label><input type="radio" name="type" value="postcard" checked><span>Postcard</span></label>
+        <label><input type="radio" name="type" value="letter"><span>Letter</span></label>
+        <label><input type="radio" name="type" value="other"><span>Other</span></label>
+      </fieldset>
+
+      <label>To whom?
+        <input name="toName" list="contact-names" required autocomplete="off" placeholder="Start typing a name">
+        <datalist id="contact-names"></datalist>
+      </label>
+
+      <div class="row">
+        <label>Mailed from
+          <input name="fromPlace" autocomplete="off" placeholder="e.g. Bergen, the airport post box">
+        </label>
+        <label>Country
+          <input name="fromCountry" list="country-names" autocomplete="off" placeholder="e.g. Norway">
+          <datalist id="country-names"></datalist>
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Sent on
+          <input type="date" name="sentDate" required>
+        </label>
+        <label>Arrived on <span class="optional">if you hear back</span>
+          <input type="date" name="arrivedDate">
+        </label>
+      </div>
+
+      <label>Notes <span class="optional">optional</span>
+        <textarea name="notes" rows="2" placeholder="The card, the stamp, what you wrote about…"></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" data-action="delete-mailing" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn quiet" data-action="close-dialog">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Address form -->
+  <dialog id="contact-dialog">
+    <form id="contact-form">
+      <h2 id="contact-dialog-title">Add an address</h2>
+
+      <label>Name
+        <input name="name" required autocomplete="off">
+      </label>
+      <label>Address
+        <input name="line1" autocomplete="off" placeholder="Street and number">
+      </label>
+      <label class="no-label">
+        <input name="line2" autocomplete="off" placeholder="Apartment, c/o, etc. (optional)" aria-label="Address line 2">
+      </label>
+      <div class="row">
+        <label>City
+          <input name="city" autocomplete="off">
+        </label>
+        <label>State / region
+          <input name="region" autocomplete="off">
+        </label>
+      </div>
+      <div class="row">
+        <label>Postal code
+          <input name="postcode" autocomplete="off">
+        </label>
+        <label>Country
+          <input name="country" list="country-names" autocomplete="off">
+        </label>
+      </div>
+      <label>Notes <span class="optional">optional</span>
+        <textarea name="notes" rows="2" placeholder="Birthday, favourite stamps, moving soon…"></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" data-action="delete-contact" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn quiet" data-action="close-dialog">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
