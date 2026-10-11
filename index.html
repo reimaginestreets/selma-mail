@@ -27,6 +27,7 @@
     <nav class="tabs" aria-label="Sections">
       <button class="tab" data-view="mailings" aria-current="page">Mailings</button>
       <button class="tab" data-view="addresses">Addresses</button>
+      <button class="tab" data-view="calendar">Calendar</button>
     </nav>
   </header>
 
@@ -56,6 +57,18 @@
         <button class="btn primary" data-action="new-contact">Add an address</button>
       </div>
       <div id="contact-list"></div>
+    </section>
+
+    <!-- Calendar -->
+    <section id="view-calendar" hidden>
+      <div class="year-nav">
+        <button class="btn small quiet" data-action="prev-year" aria-label="Previous year">←</button>
+        <h2 id="calendar-year"></h2>
+        <button class="btn small quiet" data-action="next-year" aria-label="Next year">→</button>
+      </div>
+      <p class="meta" id="calendar-summary"></p>
+      <div id="calendar" class="calendar"></div>
+      <div id="calendar-day"></div>
     </section>
   </main>
 
@@ -180,6 +193,26 @@
         <button type="submit" class="btn primary">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Restore from backup -->
+  <dialog id="import-dialog">
+    <div class="dialog-body">
+      <h2>Restore from backup</h2>
+      <p id="import-summary"></p>
+      <div class="choice">
+        <button class="btn primary" data-action="import-merge">Add to what is here</button>
+        <p class="meta">Keeps everything on this device and adds whatever is new in the backup. Best for combining your phone and computer.</p>
+      </div>
+      <div class="choice">
+        <button class="btn" data-action="import-replace">Replace everything</button>
+        <p class="meta">Erases what is on this device and uses only the backup.</p>
+      </div>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button class="btn quiet" data-action="close-dialog">Cancel</button>
+      </div>
+    </div>
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>

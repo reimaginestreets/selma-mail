@@ -14,8 +14,13 @@ const mailingForm = $('#mailing-form');
 const contactDialog = $('#contact-dialog');
 const contactForm = $('#contact-form');
 
+const importDialog = $('#import-dialog');
+
 let editingMailingId = null;
 let editingContactId = null;
+let pendingImport = null;
+let calendarYear = new Date().getFullYear();
+let calendarDay = null;
 
 const TYPE_LABELS = { postcard: 'Postcard', letter: 'Letter', other: 'Other' };
 const TYPE_ICONS = {
@@ -97,6 +102,7 @@ const dayFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 's
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 const formatDay = (str) => dayFormat.format(parseDay(str));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const addressCount = (n) => `${n} address${n === 1 ? '' : 'es'}`;
 
 function contactById(id) {
   return state.contacts.find((c) => c.id === id);
@@ -155,6 +161,7 @@ function render() {
   renderStats();
   renderMailings();
   renderContacts();
+  renderCalendar();
   renderSuggestions();
 }
 
@@ -313,6 +320,57 @@ function contactCard(c) {
   </article>`;
 }
 
+// A year at a glance: every day something went in the post is shaded, darker for more.
+function renderCalendar() {
+  const byDay = new Map();
+  for (const m of state.mailings) {
+    if (!m.sentDate.startsWith(`${calendarYear}-`)) continue;
+    byDay.set(m.sentDate, [...(byDay.get(m.sentDate) ?? []), m]);
+  }
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = todayStr();
+  const monthName = new Intl.DateTimeFormat(undefined, { month: 'long' });
+  const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
+  // 1 January 2024 was a Monday; weeks here start on Monday.
+  const weekdays = Array.from({ length: 7 }, (_, i) => `<span class="weekday">${weekdayName.format(new Date(2024, 0, i + 1))}</span>`).join('');
+
+  const perMonth = Array(12).fill(0);
+  let html = '';
+  for (let month = 0; month < 12; month++) {
+    const blanks = (new Date(calendarYear, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(calendarYear, month + 1, 0).getDate();
+    let days = '<span></span>'.repeat(blanks);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${calendarYear}-${pad(month + 1)}-${pad(day)}`;
+      const sent = byDay.get(date);
+      const todayClass = date === today ? ' today' : '';
+      if (!sent) {
+        days += `<span class="day${todayClass}">${day}</span>`;
+        continue;
+      }
+      perMonth[month] += sent.length;
+      const label = `${formatDay(date)}: ${plural(sent.length, 'mailing')} to ${sent.map(recipientName).join(', ')}`;
+      const selected = date === calendarDay ? ' selected' : '';
+      days += `<button class="day sent-${Math.min(sent.length, 3)}${todayClass}${selected}" data-action="show-day" data-date="${date}" title="${esc(label)}" aria-label="${esc(label)}">${day}</button>`;
+    }
+    html += `<section class="month"><h3>${monthName.format(new Date(calendarYear, month, 1))}</h3><div class="days">${weekdays}${days}</div></section>`;
+  }
+  $('#calendar').innerHTML = html;
+  $('#calendar-year').textContent = calendarYear;
+
+  const total = perMonth.reduce((a, b) => a + b, 0);
+  const busiest = perMonth.indexOf(Math.max(...perMonth));
+  $('#calendar-summary').textContent = total
+    ? `${plural(total, 'mailing')} on ${plural(byDay.size, 'day')} · busiest month: ${monthName.format(new Date(calendarYear, busiest, 1))}`
+    : `Nothing posted in ${calendarYear}.`;
+
+  const chosen = byDay.get(calendarDay);
+  $('#calendar-day').innerHTML = chosen
+    ? `<h2 class="month-heading">${formatDay(calendarDay)}</h2>${chosen.map(mailingCard).join('')}`
+    : '';
+}
+
 // Autocomplete suggestions for the forms.
 function renderSuggestions() {
   const options = (values) => [...new Set(values.filter(Boolean))].sort().map((v) => `<option value="${esc(v)}">`).join('');
@@ -365,6 +423,7 @@ mailingForm.addEventListener('submit', (e) => {
     sentDate: data.sentDate,
     arrivedDate: data.arrivedDate || null,
     notes: data.notes.trim(),
+    updatedAt: new Date().toISOString(),
   };
   const index = state.mailings.findIndex((m) => m.id === mailing.id);
   if (index >= 0) state.mailings[index] = mailing;
@@ -412,7 +471,7 @@ contactForm.addEventListener('submit', (e) => {
     toast('That month does not have that many days');
     return;
   }
-  const contact = { id: editingContactId ?? crypto.randomUUID(), ...data };
+  const contact = { id: editingContactId ?? crypto.randomUUID(), ...data, updatedAt: new Date().toISOString() };
 
   const index = state.contacts.findIndex((c) => c.id === contact.id);
   if (index >= 0) {
@@ -479,15 +538,63 @@ $('#import-file').addEventListener('change', async (e) => {
     toast('That file is not a Selma backup');
     return;
   }
-  const summary = `${plural(data.mailings.length, 'mailing')} and ${plural(data.contacts.length, 'address')}`.replace('addresss', 'addresses');
-  if (!confirm(`Replace everything here with the backup (${summary})?`)) return;
+  // Nothing here to lose, so there is nothing to ask.
+  if (!state.mailings.length && !state.contacts.length) {
+    replaceWithBackup(data);
+    return;
+  }
+  pendingImport = data;
+  $('#import-summary').textContent = `This backup holds ${plural(data.mailings.length, 'mailing')} and ${addressCount(data.contacts.length)}.`;
+  importDialog.showModal();
+});
+
+function replaceWithBackup(data) {
   state.mailings = data.mailings;
   state.contacts = data.contacts;
   saveState();
   markBackedUp();
   render();
   toast('Backup restored');
-});
+}
+
+// Adds a backup to what is already here. The same entry on both sides is kept once,
+// using whichever copy was edited most recently.
+function mergeBackup(data) {
+  const isNewer = (a, b) => (a.updatedAt ?? '') > (b.updatedAt ?? '');
+  const mailingKey = (m) => [m.type, recipientName(m).trim().toLowerCase(), m.sentDate].join('|');
+  const localIdFor = new Map(); // contact id in the backup -> contact id here
+  let newMailings = 0, newContacts = 0;
+
+  for (const incoming of data.contacts) {
+    const existing = contactById(incoming.id) ?? findContactByName(incoming.name);
+    if (!existing) {
+      state.contacts.push(incoming);
+      localIdFor.set(incoming.id, incoming.id);
+      newContacts += 1;
+      continue;
+    }
+    localIdFor.set(incoming.id, existing.id);
+    if (isNewer(incoming, existing)) Object.assign(existing, incoming, { id: existing.id });
+  }
+
+  for (const original of data.mailings) {
+    const incoming = { ...original, toContactId: localIdFor.get(original.toContactId) ?? null };
+    const key = mailingKey(incoming);
+    const existing = state.mailings.find((m) => m.id === incoming.id) ?? state.mailings.find((m) => mailingKey(m) === key);
+    if (!existing) {
+      state.mailings.push(incoming);
+      newMailings += 1;
+    } else if (isNewer(incoming, existing)) {
+      Object.assign(existing, incoming, { id: existing.id });
+    }
+  }
+
+  saveState();
+  render();
+  toast(newMailings || newContacts
+    ? `Added ${plural(newMailings, 'mailing')} and ${addressCount(newContacts)}`
+    : 'Nothing new in that backup');
+}
 
 // ---------- navigation & events ----------
 
@@ -496,8 +603,9 @@ function showView(name) {
     if (tab.dataset.view === name) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   }
-  $('#view-mailings').hidden = name !== 'mailings';
-  $('#view-addresses').hidden = name !== 'addresses';
+  for (const view of ['mailings', 'addresses', 'calendar']) {
+    $(`#view-${view}`).hidden = name !== view;
+  }
 }
 
 document.addEventListener('click', (e) => {
@@ -531,6 +639,21 @@ document.addEventListener('click', (e) => {
       renderBackup();
       break;
     case 'import': $('#import-file').click(); break;
+    case 'import-merge':
+      importDialog.close();
+      mergeBackup(pendingImport);
+      break;
+    case 'import-replace':
+      if (!confirm('Erase what is on this device and use only the backup? This cannot be undone.')) break;
+      importDialog.close();
+      replaceWithBackup(pendingImport);
+      break;
+    case 'prev-year': calendarYear -= 1; calendarDay = null; renderCalendar(); break;
+    case 'next-year': calendarYear += 1; calendarDay = null; renderCalendar(); break;
+    case 'show-day':
+      calendarDay = target.dataset.date === calendarDay ? null : target.dataset.date;
+      renderCalendar();
+      break;
   }
 });
 

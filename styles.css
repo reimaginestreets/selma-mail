@@ -216,7 +216,7 @@ dialog {
   box-shadow: 0 20px 60px rgba(46, 58, 63, .18);
 }
 dialog::backdrop { background: rgba(46, 58, 63, .28); }
-dialog form { padding: 24px; display: grid; gap: 14px; }
+dialog form, .dialog-body { padding: 24px; display: grid; gap: 14px; }
 dialog h2 { margin: 0 0 4px; font: 500 24px var(--serif); }
 dialog label { display: block; font-size: 14px; font-weight: 500; }
 dialog label.no-label { margin-top: -6px; }
@@ -241,6 +241,36 @@ dialog input, dialog textarea, dialog select { display: block; width: 100%; marg
 
 .dialog-actions { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .spacer { flex: 1; }
+
+.dialog-body p { margin: 0; }
+.choice { display: grid; gap: 6px; justify-items: start; }
+
+/* Calendar */
+.year-nav { display: flex; align-items: center; gap: 12px; }
+.year-nav h2 { margin: 0; font: 500 28px/1 var(--serif); min-width: 3.2em; text-align: center; }
+#calendar-summary { margin: 8px 0 24px; }
+.calendar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px 32px; }
+.month h3 { margin: 0 0 8px; font: 500 17px var(--serif); }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 12px; }
+.weekday { color: var(--muted); font-size: 11px; padding-bottom: 2px; }
+.day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+}
+button.day { cursor: pointer; color: var(--ink); font-weight: 600; }
+.day.sent-1 { background: #D5E2D8; }
+.day.sent-2 { background: #A9BFB0; }
+.day.sent-3 { background: var(--sage-deep); color: #fff; }
+.day.today { outline: 1.5px solid var(--clay); outline-offset: -1.5px; }
+.day.selected { box-shadow: 0 0 0 2px var(--ink); }
+#calendar-day { margin-top: 28px; }
 
 /* Footer */
 footer {
@@ -285,4 +315,5 @@ footer .btn { font-size: 14px; padding: 7px 12px; }
   .contact { flex-direction: column; }
   .contact-actions { flex-direction: row; flex-wrap: wrap; }
   .row { grid-template-columns: 1fr; }
+  .calendar { grid-template-columns: repeat(2, 1fr); gap: 22px 20px; }
 }
