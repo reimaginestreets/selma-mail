@@ -321,11 +321,22 @@ function contactCard(c) {
 }
 
 // A year at a glance: every day something went in the post is shaded, darker for more.
+// Birthdays from the address book get a small dot.
 function renderCalendar() {
   const byDay = new Map();
   for (const m of state.mailings) {
     if (!m.sentDate.startsWith(`${calendarYear}-`)) continue;
     byDay.set(m.sentDate, [...(byDay.get(m.sentDate) ?? []), m]);
+  }
+
+  const isLeapYear = new Date(calendarYear, 1, 29).getMonth() === 1;
+  const birthdaysOn = new Map(); // "month-day" -> contacts
+  for (const c of state.contacts) {
+    if (!c.birthMonth || !c.birthDay) continue;
+    // Someone born on 29 February is shown on the 28th in other years.
+    const day = c.birthMonth === '2' && c.birthDay === '29' && !isLeapYear ? 28 : Number(c.birthDay);
+    const key = `${Number(c.birthMonth)}-${day}`;
+    birthdaysOn.set(key, [...(birthdaysOn.get(key) ?? []), c]);
   }
 
   const pad = (n) => String(n).padStart(2, '0');
@@ -343,16 +354,27 @@ function renderCalendar() {
     let days = '<span></span>'.repeat(blanks);
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${calendarYear}-${pad(month + 1)}-${pad(day)}`;
-      const sent = byDay.get(date);
+      const sent = byDay.get(date) ?? [];
+      const birthdays = birthdaysOn.get(`${month + 1}-${day}`) ?? [];
       const todayClass = date === today ? ' today' : '';
-      if (!sent) {
+      if (!sent.length && !birthdays.length) {
         days += `<span class="day${todayClass}">${day}</span>`;
         continue;
       }
       perMonth[month] += sent.length;
-      const label = `${formatDay(date)}: ${plural(sent.length, 'mailing')} to ${sent.map(recipientName).join(', ')}`;
-      const selected = date === calendarDay ? ' selected' : '';
-      days += `<button class="day sent-${Math.min(sent.length, 3)}${todayClass}${selected}" data-action="show-day" data-date="${date}" title="${esc(label)}" aria-label="${esc(label)}">${day}</button>`;
+      const label = [
+        formatDay(date),
+        sent.length && `${plural(sent.length, 'mailing')} to ${sent.map(recipientName).join(', ')}`,
+        birthdays.length && `birthday of ${birthdays.map((c) => c.name).join(', ')}`,
+      ].filter(Boolean).join(' · ');
+      const classes = [
+        'day',
+        sent.length && `sent-${Math.min(sent.length, 3)}`,
+        birthdays.length && 'birthday',
+        date === today && 'today',
+        date === calendarDay && 'selected',
+      ].filter(Boolean).join(' ');
+      days += `<button class="${classes}" data-action="show-day" data-date="${date}" title="${esc(label)}" aria-label="${esc(label)}">${day}</button>`;
     }
     html += `<section class="month"><h3>${monthName.format(new Date(calendarYear, month, 1))}</h3><div class="days">${weekdays}${days}</div></section>`;
   }
@@ -365,10 +387,17 @@ function renderCalendar() {
     ? `${plural(total, 'mailing')} on ${plural(byDay.size, 'day')} · busiest month: ${monthName.format(new Date(calendarYear, busiest, 1))}`
     : `Nothing posted in ${calendarYear}.`;
 
-  const chosen = byDay.get(calendarDay);
-  $('#calendar-day').innerHTML = chosen
-    ? `<h2 class="month-heading">${formatDay(calendarDay)}</h2>${chosen.map(mailingCard).join('')}`
-    : '';
+  if (!calendarDay) {
+    $('#calendar-day').innerHTML = '';
+    return;
+  }
+  const [, chosenMonth, chosenDay] = calendarDay.split('-').map(Number);
+  const birthdays = (birthdaysOn.get(`${chosenMonth}-${chosenDay}`) ?? []).map((c) => `<p class="card birthday-line">
+      <span>${esc(c.name)}’s birthday</span>
+      <button class="link" data-action="new-mailing" data-id="${c.id}">Log a mailing</button>
+    </p>`);
+  const cards = (byDay.get(calendarDay) ?? []).map(mailingCard);
+  $('#calendar-day').innerHTML = `<h2 class="month-heading">${formatDay(calendarDay)}</h2>${birthdays.join('')}${cards.join('')}`;
 }
 
 // Autocomplete suggestions for the forms.
