@@ -88,6 +88,24 @@ function formatAddress(c) {
   return [c.name, c.line1, c.line2, cityLine, c.country].filter(Boolean).join('\n');
 }
 
+// Birthdays are a month and a day, no year. Returns e.g. { text: "Birthday 14 March · in 12 days", soon: true }.
+const birthdayFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' });
+function birthdayInfo(c) {
+  if (!c.birthMonth || !c.birthDay) return null;
+  const month = Number(c.birthMonth) - 1, day = Number(c.birthDay);
+  const text = `Birthday ${birthdayFormat.format(new Date(2024, month, day))}`;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(today.getFullYear(), month, day);
+  if (next < today) next = new Date(today.getFullYear() + 1, month, day);
+  const daysAway = Math.round((next - today) / 864e5);
+
+  if (daysAway === 0) return { text: `${text} · today`, soon: true };
+  if (daysAway <= 21) return { text: `${text} · in ${plural(daysAway, 'day')}`, soon: true };
+  return { text, soon: false };
+}
+
 let toastTimer;
 function toast(message) {
   const el = $('#toast');
@@ -226,12 +244,14 @@ function contactCard(c) {
   const last = sent.map((m) => m.sentDate).sort().pop();
   const history = sent.length ? `${plural(sent.length, 'mailing')} · last sent ${formatDay(last)}` : 'Nothing sent yet';
   const address = formatAddress({ ...c, name: '' });
+  const birthday = birthdayInfo(c);
 
   return `<article class="card contact">
     <div>
       <h3>${esc(c.name)}</h3>
       ${address ? `<address>${esc(address)}</address>` : ''}
       ${c.notes ? `<p class="note">${esc(c.notes)}</p>` : ''}
+      ${birthday ? `<p class="meta${birthday.soon ? ' soon' : ''}">${esc(birthday.text)}</p>` : ''}
       <p class="meta">${history}</p>
     </div>
     <div class="contact-actions">
@@ -319,7 +339,7 @@ function openContactDialog(contact) {
   editingContactId = contact?.id ?? null;
   contactForm.reset();
   if (contact) {
-    for (const field of ['name', 'line1', 'line2', 'city', 'region', 'postcode', 'country', 'notes']) {
+    for (const field of ['name', 'line1', 'line2', 'city', 'region', 'postcode', 'country', 'birthMonth', 'birthDay', 'notes']) {
       contactForm.elements[field].value = contact[field] ?? '';
     }
   }
@@ -332,6 +352,15 @@ contactForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(contactForm));
   for (const key of Object.keys(data)) data[key] = data[key].trim();
+  if (Boolean(data.birthMonth) !== Boolean(data.birthDay)) {
+    toast('A birthday needs both a month and a day');
+    return;
+  }
+  // 2024 is a leap year, so 29 February is allowed.
+  if (data.birthDay && Number(data.birthDay) > new Date(2024, Number(data.birthMonth), 0).getDate()) {
+    toast('That month does not have that many days');
+    return;
+  }
   const contact = { id: editingContactId ?? crypto.randomUUID(), ...data };
 
   const index = state.contacts.findIndex((c) => c.id === contact.id);
