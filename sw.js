@@ -29,8 +29,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Ask the server whether Selma's own files have changed instead of trusting
+  // the browser's stored copy, so an update shows on the first refresh.
+  const ownFile = new URL(event.request.url).origin === self.location.origin;
+  const request = ownFile ? new Request(event.request.url, { cache: 'no-cache' }) : event.request;
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         // Also keeps the web fonts, which come from another site.
         if (response.ok || response.type === 'opaque') {

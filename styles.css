@@ -252,7 +252,7 @@ dialog input, dialog textarea, dialog select { display: block; width: 100%; marg
 .legend { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; }
 .swatch { display: inline-block; }
 .swatch.sent { width: 14px; height: 14px; border-radius: 4px; background: #A9BFB0; }
-.swatch.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--clay); margin-left: 12px; }
+.swatch.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--clay); margin-left: 12px; }
 .calendar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px 32px; }
 .month h3 { margin: 0 0 8px; font: 500 17px var(--serif); }
 .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 12px; }
@@ -278,8 +278,8 @@ button.day { cursor: pointer; color: var(--ink); font-weight: 600; }
   position: absolute;
   bottom: 1px;
   left: 50%;
-  width: 5px; height: 5px;
-  margin-left: -2.5px;
+  width: 6px; height: 6px;
+  margin-left: -3px;
   border-radius: 50%;
   background: var(--clay);
 }
