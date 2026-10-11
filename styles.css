@@ -249,9 +249,12 @@ dialog input, dialog textarea, dialog select { display: block; width: 100%; marg
 .year-nav { display: flex; align-items: center; gap: 12px; }
 .year-nav h2 { margin: 0; font: 500 28px/1 var(--serif); min-width: 3.2em; text-align: center; }
 #calendar-summary { margin: 8px 0 4px; }
-.legend { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; }
+.legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
 .swatch { display: inline-block; }
 .swatch.sent { width: 14px; height: 14px; border-radius: 4px; background: #A9BFB0; }
+.swatch.sent, .swatch.today { margin-left: 12px; }
+.swatch.today { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--ink); }
+.legend .swatch:first-child { margin-left: 0; }
 .swatch.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--clay); margin-left: 12px; }
 .calendar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px 32px; }
 .month h3 { margin: 0 0 8px; font: 500 17px var(--serif); }
@@ -286,8 +289,9 @@ button.day { cursor: pointer; color: var(--ink); font-weight: 600; }
 .day.sent-1.birthday::after, .day.sent-2.birthday::after { background: var(--clay-deep); }
 .day.sent-3.birthday::after { background: var(--clay-soft); }
 .birthday-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 0; }
-.day.today { outline: 1.5px solid var(--clay); outline-offset: -1.5px; }
-.day.selected { box-shadow: 0 0 0 2px var(--ink); }
+.day.today { outline: 1.5px solid var(--ink); outline-offset: -1.5px; }
+.day.today.birthday::after { bottom: 3px; }
+.day.selected { box-shadow: 0 0 0 3px var(--sage); }
 #calendar-day { margin-top: 28px; }
 
 /* Footer */
