@@ -2,7 +2,11 @@
 // Everything is stored in this browser (localStorage); there is no server.
 
 const STORE_KEY = 'selma.v1';
+const BACKUP_KEY = 'selma.backup';
+const REMIND_AFTER_CHANGES = 5;
+const SLOW_AFTER_DAYS = 21;
 const state = loadState();
+const backup = loadBackupInfo();
 
 const $ = (sel) => document.querySelector(sel);
 const mailingDialog = $('#mailing-dialog');
@@ -32,6 +36,30 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  backup.changes += 1;
+  saveBackupInfo();
+}
+
+// Tracks how much has changed since the last backup. Kept apart from the journal itself.
+function loadBackupInfo() {
+  try {
+    const info = JSON.parse(localStorage.getItem(BACKUP_KEY));
+    if (info && typeof info.changes === 'number') return info;
+  } catch {}
+  // Nothing recorded yet: treat whatever is already in the journal as not backed up.
+  return { changes: state.mailings.length + state.contacts.length, lastDate: null, remindAt: REMIND_AFTER_CHANGES };
+}
+
+function saveBackupInfo() {
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+}
+
+function markBackedUp() {
+  backup.changes = 0;
+  backup.lastDate = todayStr();
+  backup.remindAt = REMIND_AFTER_CHANGES;
+  saveBackupInfo();
+  renderBackup();
 }
 
 function isValidData(data) {
@@ -123,10 +151,28 @@ function emptyState(title, text, action, label) {
 // ---------- rendering ----------
 
 function render() {
+  renderBackup();
   renderStats();
   renderMailings();
   renderContacts();
   renderSuggestions();
+}
+
+function renderBackup() {
+  $('#backup-status').textContent = backup.lastDate
+    ? `Last backup saved ${formatDay(backup.lastDate)}.`
+    : 'No backup saved yet.';
+
+  const nudge = $('#backup-nudge');
+  nudge.hidden = backup.changes < backup.remindAt;
+  if (nudge.hidden) return;
+  const changes = plural(backup.changes, 'change');
+  const message = backup.lastDate
+    ? `You have made ${changes} since your last backup.`
+    : `You have made ${changes} and have not saved a backup yet.`;
+  nudge.innerHTML = `<p>${message}</p>
+    <button class="btn small primary" data-action="export">Save a backup</button>
+    <button class="btn small quiet" data-action="snooze-backup">Later</button>`;
 }
 
 function renderStats() {
@@ -188,11 +234,15 @@ function mailingCard(m) {
   ].filter(Boolean).join(' · ');
 
   let status;
+  let nudge = '';
   if (m.arrivedDate) {
     const days = daysBetween(m.sentDate, m.arrivedDate);
     status = `<span class="pill arrived" title="Arrived ${formatDay(m.arrivedDate)}">${days === 0 ? 'Same day' : plural(days, 'day')}</span>`;
   } else {
     const days = Math.max(0, daysBetween(m.sentDate, todayStr()));
+    if (days >= SLOW_AFTER_DAYS) {
+      nudge = `<p class="meta soon">On its way for ${Math.floor(days / 7)} weeks — worth asking if it arrived?</p>`;
+    }
     status = `<span class="pill travelling">On its way · day ${days + 1}</span>
       <button class="link" data-action="mark-arrived" data-id="${m.id}">It arrived</button>`;
   }
@@ -203,6 +253,7 @@ function mailingCard(m) {
       <h3>${esc(recipientName(m))}</h3>
       <p class="meta">${meta}</p>
       ${m.notes ? `<p class="note">${esc(m.notes)}</p>` : ''}
+      ${nudge}
       <p class="meta"><button class="link" data-action="edit-mailing" data-id="${m.id}">Edit</button></p>
     </div>
     <div class="mailing-side">${status}</div>
@@ -413,6 +464,7 @@ function exportBackup() {
   link.download = `selma-backup-${todayStr()}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
+  markBackedUp();
 }
 
 $('#import-file').addEventListener('change', async (e) => {
@@ -432,6 +484,7 @@ $('#import-file').addEventListener('change', async (e) => {
   state.mailings = data.mailings;
   state.contacts = data.contacts;
   saveState();
+  markBackedUp();
   render();
   toast('Backup restored');
 });
@@ -472,6 +525,11 @@ document.addEventListener('click', (e) => {
     case 'copy-address': copyAddress(id); break;
     case 'close-dialog': target.closest('dialog').close(); break;
     case 'export': exportBackup(); break;
+    case 'snooze-backup':
+      backup.remindAt = backup.changes + REMIND_AFTER_CHANGES;
+      saveBackupInfo();
+      renderBackup();
+      break;
     case 'import': $('#import-file').click(); break;
   }
 });
@@ -481,3 +539,6 @@ $('#mailing-type').addEventListener('change', renderMailings);
 $('#contact-search').addEventListener('input', renderContacts);
 
 render();
+
+// Lets Selma open without a connection once she has been visited.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');

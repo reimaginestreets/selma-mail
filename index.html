@@ -7,6 +7,9 @@
   <meta name="description" content="Track the postcards and letters you send, and keep your addresses close.">
   <meta name="theme-color" content="#F6F3EE">
   <link rel="icon" href="selma.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-title" content="Selma">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -28,6 +31,8 @@
   </header>
 
   <main>
+    <div id="backup-nudge" class="backup-nudge" hidden></div>
+
     <!-- Mailings -->
     <section id="view-mailings">
       <div class="stats" id="stats"></div>
@@ -55,7 +60,7 @@
   </main>
 
   <footer>
-    <p>Everything you enter stays in this browser on this device. Keep a backup now and then.</p>
+    <p>Everything you enter stays in this browser on this device. <span id="backup-status"></span></p>
     <div class="footer-actions">
       <button class="btn quiet" data-action="export">Save a backup</button>
       <button class="btn quiet" data-action="import">Restore from backup</button>

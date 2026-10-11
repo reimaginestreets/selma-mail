@@ -1,0 +1,15 @@
+{
+  "name": "Selma — a slow mail journal",
+  "short_name": "Selma",
+  "description": "Track the postcards and letters you send, and keep your addresses close.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F6F3EE",
+  "theme_color": "#F6F3EE",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
