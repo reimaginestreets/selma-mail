@@ -1,7 +1,7 @@
 // Selma's service worker: keeps a copy of the app so it opens offline.
 // Network first, so a connected device always gets the latest version.
 
-const CACHE = 'selma-v1';
+const CACHE = 'selma-mail-v1';
 const APP_FILES = [
   './',
   'index.html',
@@ -22,7 +22,10 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((names) => Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name))))
+      // Only clear out older copies of the mail journal; the other Selma journals keep theirs.
+      .then((names) => Promise.all(
+        names.filter((name) => name.startsWith('selma-mail-') && name !== CACHE).map((name) => caches.delete(name))
+      ))
       .then(() => self.clients.claim())
   );
 });

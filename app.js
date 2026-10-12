@@ -1,10 +1,11 @@
 // Selma — a slow mail journal.
 // Everything is stored in this browser (localStorage); there is no server.
 
-const STORE_KEY = 'selma.v1';
-const BACKUP_KEY = 'selma.backup';
+const STORE_KEY = 'selma-mail.v1';
+const BACKUP_KEY = 'selma-mail.backup';
 const REMIND_AFTER_CHANGES = 5;
 const SLOW_AFTER_DAYS = 21;
+adoptOldStorage();
 const state = loadState();
 const backup = loadBackupInfo();
 
@@ -30,6 +31,17 @@ const TYPE_ICONS = {
 };
 
 // ---------- storage ----------
+
+// The journal used to be saved under plain "selma" names. The other Selma journals share
+// this browser storage, so move anything found there to names that are clearly the mail journal's.
+function adoptOldStorage() {
+  for (const [oldKey, newKey] of [['selma.v1', STORE_KEY], ['selma.backup', BACKUP_KEY]]) {
+    const old = localStorage.getItem(oldKey);
+    if (old === null) continue;
+    if (localStorage.getItem(newKey) === null) localStorage.setItem(newKey, old);
+    if (localStorage.getItem(newKey) !== null) localStorage.removeItem(oldKey);
+  }
+}
 
 function loadState() {
   try {

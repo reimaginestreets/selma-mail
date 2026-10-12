@@ -41,10 +41,12 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding-top: 36px;
+  padding-top: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
 }
+.home-link { flex-basis: 100%; color: var(--muted); font-size: 14px; text-decoration: none; }
+.home-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand h1 {
   margin: 0;
