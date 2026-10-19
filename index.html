@@ -37,6 +37,19 @@
 
     <!-- Mailings -->
     <section id="view-mailings">
+      <section class="write-next" aria-labelledby="write-next-title">
+        <div class="write-next-head">
+          <h2 id="write-next-title">Write next</h2>
+          <span class="meta" id="write-next-count"></span>
+        </div>
+        <form id="write-next-form" class="write-next-form">
+          <input name="name" list="contact-names" required autocomplete="off" placeholder="Who’s on your mind?" aria-label="Name">
+          <input name="note" autocomplete="off" placeholder="A note, if you like" aria-label="Note">
+          <button class="btn small primary" type="submit">Add</button>
+        </form>
+        <ul class="write-next-list" id="write-next-list"></ul>
+      </section>
+
       <div class="stats" id="stats"></div>
       <div class="toolbar">
         <input type="search" id="mailing-search" placeholder="Search by person, place or note" aria-label="Search mailings">

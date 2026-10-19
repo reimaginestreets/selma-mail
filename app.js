@@ -46,9 +46,9 @@ function adoptOldStorage() {
 function loadState() {
   try {
     const data = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (isValidData(data)) return data;
+    if (isValidData(data)) return { ...data, writeNext: Array.isArray(data.writeNext) ? data.writeNext : [] };
   } catch {}
-  return { mailings: [], contacts: [] };
+  return { mailings: [], contacts: [], writeNext: [] };
 }
 
 function saveState() {
@@ -170,6 +170,7 @@ function emptyState(title, text, action, label) {
 
 function render() {
   renderBackup();
+  renderWriteNext();
   renderStats();
   renderMailings();
   renderContacts();
@@ -309,6 +310,77 @@ function renderContacts() {
   list.innerHTML = html;
 }
 
+// People to write to soon, plus a gentle suggestion for birthdays coming up.
+function renderWriteNext() {
+  const items = [...state.writeNext].sort((a, b) => a.addedDate.localeCompare(b.addedDate));
+  $('#write-next-count').textContent = items.length ? `${items.length} on your list` : '';
+
+  const rows = items.map((item) => `<li>
+      <div class="who">
+        <b>${esc(item.name)}</b>
+        <p class="meta">${[item.note && esc(item.note), `added ${addedWhen(item.addedDate)}`].filter(Boolean).join(' · ')}</p>
+      </div>
+      <div class="actions">
+        <button class="link" data-action="write-now" data-id="${item.id}">Log a mailing</button>
+        <button class="link quiet" data-action="remove-write-next" data-id="${item.id}" aria-label="Remove ${esc(item.name)} from the list">Remove</button>
+      </div>
+    </li>`);
+
+  const suggestions = state.contacts
+    .filter((c) => birthdayInfo(c)?.soon && !onWriteNext(c.name))
+    .map((c) => `<li class="suggestion">
+      <div class="who">
+        <b>${esc(c.name)}</b>
+        <p class="meta soon">${esc(birthdayInfo(c).text)}</p>
+      </div>
+      <div class="actions">
+        <button class="link" data-action="add-write-next" data-id="${c.id}">Add to list</button>
+      </div>
+    </li>`);
+
+  $('#write-next-list').innerHTML = rows.join('') + suggestions.join('');
+}
+
+function addedWhen(date) {
+  const days = daysBetween(date, todayStr());
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  return `on ${formatDay(date)}`;
+}
+
+function onWriteNext(name) {
+  const wanted = name.trim().toLowerCase();
+  return state.writeNext.find((item) => item.name.trim().toLowerCase() === wanted);
+}
+
+function addToWriteNext(name, note = '') {
+  name = name.trim();
+  if (!name) return;
+  if (onWriteNext(name)) {
+    toast(`${name} is already on your list`);
+    return;
+  }
+  state.writeNext.push({ id: crypto.randomUUID(), name, note: note.trim(), addedDate: todayStr(), updatedAt: new Date().toISOString() });
+  saveState();
+  render();
+  toast(`Added ${name} to write next`);
+}
+
+function removeFromWriteNext(id) {
+  state.writeNext = state.writeNext.filter((item) => item.id !== id);
+  saveState();
+  render();
+}
+
+$('#write-next-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const form = e.target;
+  addToWriteNext(form.elements.name.value, form.elements.note.value);
+  form.reset();
+  form.elements.name.focus();
+});
+
 function contactCard(c) {
   const sent = state.mailings.filter((m) => m.toContactId === c.id);
   const last = sent.map((m) => m.sentDate).sort().pop();
@@ -327,6 +399,9 @@ function contactCard(c) {
     <div class="contact-actions">
       <button class="btn small" data-action="copy-address" data-id="${c.id}">Copy address</button>
       <button class="btn small" data-action="new-mailing" data-id="${c.id}">Log a mailing</button>
+      ${onWriteNext(c.name)
+        ? '<span class="meta">On your write-next list</span>'
+        : `<button class="btn small" data-action="add-write-next" data-id="${c.id}">Write next</button>`}
       <button class="btn small quiet" data-action="edit-contact" data-id="${c.id}">Edit</button>
     </div>
   </article>`;
@@ -469,10 +544,13 @@ mailingForm.addEventListener('submit', (e) => {
   const index = state.mailings.findIndex((m) => m.id === mailing.id);
   if (index >= 0) state.mailings[index] = mailing;
   else state.mailings.push(mailing);
+  // Sending to someone on the write-next list ticks them off.
+  const listed = index < 0 && onWriteNext(toName);
+  if (listed) state.writeNext = state.writeNext.filter((item) => item !== listed);
   saveState();
   render();
   mailingDialog.close();
-  toast(index >= 0 ? 'Mailing updated' : 'Mailing logged');
+  toast(index >= 0 ? 'Mailing updated' : listed ? `Mailing logged · ${listed.name} ticked off your list` : 'Mailing logged');
 });
 
 function deleteMailing() {
@@ -580,7 +658,7 @@ $('#import-file').addEventListener('change', async (e) => {
     return;
   }
   // Nothing here to lose, so there is nothing to ask.
-  if (!state.mailings.length && !state.contacts.length) {
+  if (!state.mailings.length && !state.contacts.length && !state.writeNext.length) {
     replaceWithBackup(data);
     return;
   }
@@ -592,6 +670,7 @@ $('#import-file').addEventListener('change', async (e) => {
 function replaceWithBackup(data) {
   state.mailings = data.mailings;
   state.contacts = data.contacts;
+  state.writeNext = data.writeNext ?? [];
   saveState();
   markBackedUp();
   render();
@@ -630,10 +709,18 @@ function mergeBackup(data) {
     }
   }
 
+  let newListed = 0;
+  for (const incoming of data.writeNext ?? []) {
+    if (state.writeNext.some((item) => item.id === incoming.id) || onWriteNext(incoming.name)) continue;
+    state.writeNext.push(incoming);
+    newListed += 1;
+  }
+
   saveState();
   render();
-  toast(newMailings || newContacts
-    ? `Added ${plural(newMailings, 'mailing')} and ${addressCount(newContacts)}`
+  const listed = newListed ? `, plus ${newListed} to write next` : '';
+  toast(newMailings || newContacts || newListed
+    ? `Added ${plural(newMailings, 'mailing')} and ${addressCount(newContacts)}${listed}`
     : 'Nothing new in that backup');
 }
 
@@ -668,6 +755,14 @@ document.addEventListener('click', (e) => {
       break;
     }
     case 'delete-mailing': deleteMailing(); break;
+    case 'write-now': {
+      const item = state.writeNext.find((i) => i.id === id);
+      openMailingDialog(null, findContactByName(item.name)?.id);
+      mailingForm.elements.toName.value = item.name;
+      break;
+    }
+    case 'add-write-next': addToWriteNext(contactById(id).name); break;
+    case 'remove-write-next': removeFromWriteNext(id); break;
     case 'new-contact': openContactDialog(); break;
     case 'edit-contact': openContactDialog(contactById(id)); break;
     case 'delete-contact': deleteContact(); break;

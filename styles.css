@@ -70,6 +70,36 @@ body {
 
 main { padding-top: 28px; padding-bottom: 40px; min-height: 55vh; }
 
+/* Write next */
+.write-next {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.write-next-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.write-next-head h2 { margin: 0; font: 500 20px/1.3 var(--serif); }
+.write-next-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.write-next-form input { flex: 1 1 180px; padding: 8px 12px; }
+.write-next-form input[name="note"] { flex: 2 1 220px; }
+.write-next-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.write-next-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.write-next-list li:first-child { border-top: 0; }
+.write-next-list .who { min-width: 0; }
+.write-next-list .who b { font-weight: 500; }
+.write-next-list .who .meta { margin: 0; }
+.write-next-list .actions { display: flex; gap: 14px; flex: none; }
+.write-next-list .suggestion .who b { font-weight: 400; color: var(--muted); }
+.link.quiet { color: var(--muted); }
+
 /* Stats */
 .stats {
   display: grid;
