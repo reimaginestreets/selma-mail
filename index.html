@@ -58,6 +58,7 @@
           <option value="postcard">Postcards</option>
           <option value="letter">Letters</option>
           <option value="other">Other</option>
+          <option value="hand">Given by hand</option>
         </select>
         <button class="btn primary" data-action="new-mailing">Log a mailing</button>
       </div>
@@ -108,13 +109,19 @@
         <label><input type="radio" name="type" value="other"><span>Other</span></label>
       </fieldset>
 
+      <fieldset class="segmented">
+        <legend>How did it get there?</legend>
+        <label><input type="radio" name="delivery" value="post" checked><span>By post</span></label>
+        <label><input type="radio" name="delivery" value="hand"><span>By hand</span></label>
+      </fieldset>
+
       <label>To whom?
         <input name="toName" list="contact-names" required autocomplete="off" placeholder="Start typing a name">
         <datalist id="contact-names"></datalist>
       </label>
 
       <div class="row">
-        <label>Mailed from
+        <label><span id="from-label">Mailed from</span>
           <input name="fromPlace" autocomplete="off" placeholder="e.g. Bergen, the airport post box">
         </label>
         <label>Country
@@ -124,10 +131,10 @@
       </div>
 
       <div class="row">
-        <label>Sent on
+        <label><span id="sent-label">Sent on</span>
           <input type="date" name="sentDate" required>
         </label>
-        <label>Arrived on <span class="optional">if you hear back</span>
+        <label id="arrived-field">Arrived on <span class="optional">if you hear back</span>
           <input type="date" name="arrivedDate">
         </label>
       </div>

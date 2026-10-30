@@ -197,9 +197,12 @@ function renderBackup() {
 
 function renderStats() {
   const arrived = state.mailings.filter((m) => m.arrivedDate);
-  const countries = new Set(state.mailings.map((m) => m.fromCountry?.trim().toLowerCase()).filter(Boolean));
-  const average = arrived.length
-    ? Math.round(arrived.reduce((sum, m) => sum + daysBetween(m.sentDate, m.arrivedDate), 0) / arrived.length)
+  // Cards given by hand count as sent, but say nothing about the post.
+  const posted = state.mailings.filter((m) => m.delivery !== 'hand');
+  const postedArrived = posted.filter((m) => m.arrivedDate);
+  const countries = new Set(posted.map((m) => m.fromCountry?.trim().toLowerCase()).filter(Boolean));
+  const average = postedArrived.length
+    ? Math.round(postedArrived.reduce((sum, m) => sum + daysBetween(m.sentDate, m.arrivedDate), 0) / postedArrived.length)
     : null;
 
   const stats = [
@@ -221,7 +224,7 @@ function renderMailings() {
   const query = $('#mailing-search').value.trim().toLowerCase();
   const type = $('#mailing-type').value;
   const matches = state.mailings
-    .filter((m) => !type || m.type === type)
+    .filter((m) => !type || (type === 'hand' ? m.delivery === 'hand' : m.type === type))
     .filter((m) => !query || [recipientName(m), m.fromPlace, m.fromCountry, m.notes].join(' ').toLowerCase().includes(query))
     .sort((a, b) => b.sentDate.localeCompare(a.sentDate));
 
@@ -244,18 +247,18 @@ function renderMailings() {
 }
 
 function mailingCard(m) {
+  const byHand = m.delivery === 'hand';
   const from = [m.fromPlace, m.fromCountry].filter(Boolean).join(', ');
   const destination = contactById(m.toContactId)?.country;
-  const meta = [
-    TYPE_LABELS[m.type],
-    from && `from ${esc(from)}`,
-    destination && `to ${esc(destination)}`,
-    `sent ${formatDay(m.sentDate)}`,
-  ].filter(Boolean).join(' · ');
+  const meta = byHand
+    ? [TYPE_LABELS[m.type], from && `handed over at ${esc(from)}`, `given ${formatDay(m.sentDate)}`]
+    : [TYPE_LABELS[m.type], from && `from ${esc(from)}`, destination && `to ${esc(destination)}`, `sent ${formatDay(m.sentDate)}`];
 
   let status;
   let nudge = '';
-  if (m.arrivedDate) {
+  if (byHand) {
+    status = '<span class="pill arrived">By hand</span>';
+  } else if (m.arrivedDate) {
     const days = daysBetween(m.sentDate, m.arrivedDate);
     status = `<span class="pill arrived" title="Arrived ${formatDay(m.arrivedDate)}">${days === 0 ? 'Same day' : plural(days, 'day')}</span>`;
   } else {
@@ -271,7 +274,7 @@ function mailingCard(m) {
     <div class="mailing-icon ${m.type}">${TYPE_ICONS[m.type]}</div>
     <div class="mailing-body">
       <h3>${esc(recipientName(m))}</h3>
-      <p class="meta">${meta}</p>
+      <p class="meta">${meta.filter(Boolean).join(' · ')}</p>
       ${m.notes ? `<p class="note">${esc(m.notes)}</p>` : ''}
       ${nudge}
       <p class="meta"><button class="link" data-action="edit-mailing" data-id="${m.id}">Edit</button></p>
@@ -505,6 +508,7 @@ function openMailingDialog(mailing, presetContactId) {
   const f = mailingForm.elements;
   if (mailing) {
     f.type.value = mailing.type;
+    f.delivery.value = mailing.delivery === 'hand' ? 'hand' : 'post';
     f.toName.value = recipientName(mailing);
     f.fromPlace.value = mailing.fromPlace ?? '';
     f.fromCountry.value = mailing.fromCountry ?? '';
@@ -516,10 +520,22 @@ function openMailingDialog(mailing, presetContactId) {
     f.toName.value = contactById(presetContactId)?.name ?? '';
   }
   f.arrivedDate.min = f.sentDate.value;
+  syncDeliveryFields();
   $('#mailing-dialog-title').textContent = mailing ? 'Edit mailing' : 'Log a mailing';
   mailingForm.querySelector('[data-action="delete-mailing"]').hidden = !mailing;
   mailingDialog.showModal();
 }
+
+// A card given by hand arrives the moment it is handed over, so there is no arrival date to ask for.
+function syncDeliveryFields() {
+  const byHand = mailingForm.elements.delivery.value === 'hand';
+  $('#from-label').textContent = byHand ? 'Handed over at' : 'Mailed from';
+  mailingForm.elements.fromPlace.placeholder = byHand ? 'e.g. over coffee, at the station' : 'e.g. Bergen, the airport post box';
+  $('#sent-label').textContent = byHand ? 'Given on' : 'Sent on';
+  $('#arrived-field').hidden = byHand;
+}
+
+for (const radio of mailingForm.elements.delivery) radio.addEventListener('change', syncDeliveryFields);
 
 mailingForm.elements.sentDate.addEventListener('change', (e) => {
   mailingForm.elements.arrivedDate.min = e.target.value;
@@ -529,15 +545,17 @@ mailingForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(mailingForm));
   const toName = data.toName.trim();
+  const byHand = data.delivery === 'hand';
   const mailing = {
     id: editingMailingId ?? crypto.randomUUID(),
     type: data.type,
+    delivery: byHand ? 'hand' : 'post',
     toName,
     toContactId: findContactByName(toName)?.id ?? null,
     fromPlace: data.fromPlace.trim(),
     fromCountry: data.fromCountry.trim(),
     sentDate: data.sentDate,
-    arrivedDate: data.arrivedDate || null,
+    arrivedDate: byHand ? data.sentDate : data.arrivedDate || null,
     notes: data.notes.trim(),
     updatedAt: new Date().toISOString(),
   };
